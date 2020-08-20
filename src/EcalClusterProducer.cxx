@@ -31,7 +31,8 @@ namespace ldmx {
 
         TemplatedClusterFinder<MyClusterWeight> cf;
 
-        std::vector< EcalHit > ecalHits = event.getCollection< EcalHit >( "ecalDigis" , digisPassName_ );
+        //std::vector< EcalHit > ecalHits = event.getCollection< EcalHit >( "ecalDigis" , digisPassName_ );
+        std::vector< EcalHit > ecalHits = event.getCollection< EcalHit >( "EcalRecHits" );
         int nEcalDigis = ecalHits.size();
 
         // Don't do anything if there are no ECal digis!
