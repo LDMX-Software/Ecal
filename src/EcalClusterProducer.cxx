@@ -18,7 +18,8 @@ namespace ldmx {
         auto hexReadout{parameters.getParameter<Parameters>("hexReadout")};
         hexReadout_ = std::make_shared<EcalHexReadout>(hexReadout);
         cutoff_ = parameters.getParameter< double >("cutoff");
-        seedThreshold_ = parameters.getParameter< double >("seedThreshold"); 
+        seedThreshold_ = parameters.getParameter< double >("seedThreshold");
+        nHitsMin_ = parameters.getParameter< int >("nHitsMin"); 
         digisPassName_ = parameters.getParameter< std::string >("digisPassName");
         algoCollName_ = parameters.getParameter< std::string >("algoCollName");
         algoName_ = parameters.getParameter< std::string >("algoName");
