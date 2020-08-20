@@ -65,6 +65,7 @@ namespace ldmx {
             std::shared_ptr<EcalHexReadout> hexReadout_;
             double seedThreshold_{0};
             double cutoff_{0};
+            int nHitsMin_;
             std::string digisPassName_;
             std::string algoCollName_;
             std::string clusterCollName_;

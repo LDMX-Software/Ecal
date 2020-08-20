@@ -69,6 +69,9 @@ namespace ldmx {
             cluster.setCentroidXYZ(wcVec[aWC].centroid().Px(), wcVec[aWC].centroid().Py(), wcVec[aWC].centroid().Pz());
             cluster.setNHits(wcVec[aWC].getHits().size());
             cluster.addHits(wcVec[aWC].getHits());
+
+            //check to see if the cluster has more than the minimum number of hits to be included in the collection
+            if(cluster.getNHits()<nHitsMin_){ continue; }
     
             ecalClusters.push_back( cluster );
         }

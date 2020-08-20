@@ -20,6 +20,9 @@ class EcalClusterProducer(ldmxcfg.Producer) :
         # Pass name for ecal digis
         self.digisPassName = "recon"
 
+        # Minimum number of hits in a cluster to save it to the collection
+        self.nHitsMin = 3
+
         # Name of the algo to save to the root file 
         self.algoName = "MyClusterAlgo"
 
