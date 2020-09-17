@@ -63,7 +63,7 @@ namespace ldmx {
             bool isInShowerOuterRing(EcalID centroidID, EcalID probeID){
                 return hexReadout_->isNNN(centroidID, probeID);
             }
-            std::pair<double,double> getCellCentroidXYPair(EcalID centroidID){
+            std::tuple<double,double,double> getCellCentroidXYZTuple(EcalID centroidID){
                 return hexReadout_->getCellCenterAbsolute(centroidID);
             }
             std::vector<EcalID> getInnerRingCellIds(EcalID id){

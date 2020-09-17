@@ -37,7 +37,7 @@ namespace ldmx {
     if (debug_) {
       std::cout << "=== Module position map ===" << std::endl;
       for (const auto &p : hexReadout_->getCellModulePositionMap()) {
-        std::cout << p.first << " " << p.second.first << " " << p.second.second << std::endl;
+        std::cout << p.first << " " << std::get<0>(p.second) << " " << std::get<1>(p.second) << std::get<2>(p.second) << std::endl;
       }
       std::cout << "=== Layer Zs ===" << std::endl;
       for (unsigned layer=0; layer<34; ++layer) {

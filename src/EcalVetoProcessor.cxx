@@ -243,14 +243,14 @@ namespace ldmx {
                 nReadoutHits_++;
                 ecalLayerEdepReadout_[id.layer()] += hit.getEnergy();
                 ecalLayerTime_[id.layer()] += (hit.getEnergy()) * hit.getTime();
-                xMean += getCellCentroidXYPair(id).first * hit.getEnergy();
-                yMean += getCellCentroidXYPair(id).second * hit.getEnergy();
+                xMean += std::get<0>(getCellCentroidXYZTuple(id)) * hit.getEnergy();
+                yMean += std::get<1>(getCellCentroidXYZTuple(id)) * hit.getEnergy();
                 avgLayerHit_ += id.layer();
                 wavgLayerHit += id.layer() * hit.getEnergy();
                 if (deepestLayerHit_ < id.layer()) {
                     deepestLayerHit_ = id.layer();
                 }
-                XYCoords xy_pair = getCellCentroidXYPair(id);
+                XYCoords xy_pair = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
                 float distance_ele_trajectory = ele_trajectory.size() ? sqrt( pow((xy_pair.first - ele_trajectory[id.layer()].first),2) + pow((xy_pair.second - ele_trajectory[id.layer()].second),2) ) : -1.0;
                 float distance_photon_trajectory = photon_trajectory.size() ? sqrt( pow((xy_pair.first - photon_trajectory[id.layer()].first),2) + pow((xy_pair.second - photon_trajectory[id.layer()].second),2) ) : -1.0;
                 // Decide which region a hit goes into and add to sums
@@ -301,11 +301,11 @@ namespace ldmx {
         for ( const EcalHit &hit : ecalRecHits ) {
             EcalID id=hitID(hit);
             if (hit.getEnergy() > 0) {
-                xStd_ += pow((getCellCentroidXYPair(id).first - xMean), 2) * hit.getEnergy();
-                yStd_ += pow((getCellCentroidXYPair(id).second - yMean), 2) * hit.getEnergy();
+                xStd_ += pow((std::get<0>(getCellCentroidXYZTuple(id)) - xMean), 2) * hit.getEnergy();
+                yStd_ += pow((std::get<1>(getCellCentroidXYZTuple(id)) - yMean), 2) * hit.getEnergy();
                 stdLayerHit_ += pow((id.layer() - wavgLayerHit), 2) * hit.getEnergy();
             }
-            XYCoords xy_pair = getCellCentroidXYPair(id);
+            XYCoords xy_pair = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
             float distance_ele_trajectory = ele_trajectory.size() ? sqrt( pow((xy_pair.first - ele_trajectory[id.layer()].first),2) + pow((xy_pair.second - ele_trajectory[id.layer()].second),2) ) : -1.0;
             float distance_photon_trajectory = photon_trajectory.size() ? sqrt( pow((xy_pair.first - photon_trajectory[id.layer()].first),2) + pow((xy_pair.second - photon_trajectory[id.layer()].second),2) ) : -1.0;
             for(unsigned int ireg = 0; ireg < nregions; ireg++) {
@@ -432,7 +432,7 @@ namespace ldmx {
         for (const EcalHit &hit : ecalRecHits ) {
         EcalID id = hitID(hit);
             CellEnergyPair cell_energy_pair = std::make_pair(id, hit.getEnergy());
-            XYCoords centroidCoords = getCellCentroidXYPair(id);
+            XYCoords centroidCoords = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
             wgtCentroidCoords.first = wgtCentroidCoords.first + centroidCoords.first * cell_energy_pair.second;
             wgtCentroidCoords.second = wgtCentroidCoords.second + centroidCoords.second * cell_energy_pair.second;
             sumEdep += cell_energy_pair.second;
@@ -442,7 +442,7 @@ namespace ldmx {
         //Find Nearest Cell to Centroid
         float maxDist = 1e6;
         for ( const EcalHit &hit : ecalRecHits ) {
-            XYCoords centroidCoords = getCellCentroidXYPair(hitID(hit));
+            XYCoords centroidCoords = std::make_pair(std::get<0>(getCellCentroidXYZTuple(hitID(hit))), std::get<1>(getCellCentroidXYZTuple(hitID(hit))));
 
             float deltaR = pow(pow((centroidCoords.first - wgtCentroidCoords.first), 2) + pow((centroidCoords.second - wgtCentroidCoords.second), 2), .5);
             showerRMS += deltaR * hit.getEnergy();
