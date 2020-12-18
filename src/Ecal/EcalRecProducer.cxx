@@ -5,6 +5,9 @@
  */
 
 #include "Ecal/EcalRecProducer.h"
+#include "Ecal/EcalReconConditions.h"
+#include "Recon/Event/HgcrocDigiCollection.h"
+#include "Ecal/Event/EcalHit.h"
 #include "DetDescr/EcalHexReadout.h"
 #include "Ecal/EcalReconConditions.h"
 
