@@ -19,6 +19,9 @@
 //----------//
 //   LDMX   //
 //----------//
+#include "Recon/Event/HgcrocDigiCollection.h"
+#include "SimCore/Event/SimCalorimeterHit.h"
+#include "DetDescr/EcalID.h"
 #include "DetDescr/EcalHexReadout.h"
 #include "DetDescr/EcalID.h"
 #include "Framework/EventProcessor.h"

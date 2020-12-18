@@ -3,7 +3,6 @@
 // LDMX
 #include "DetDescr/SimSpecialID.h"
 #include "Ecal/Event/EcalHit.h"
-#include "Recon/Event/EventConstants.h"
 #include "SimCore/Event/SimTrackerHit.h" //until actual tracking is available
 #include "SimCore/Event/SimParticle.h"
 #include "DetDescr/SimSpecialID.h"
