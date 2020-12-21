@@ -6,6 +6,7 @@
 
 #include "Ecal/EcalRecProducer.h"
 #include "Ecal/EcalReconConditions.h"
+#include "SimCore/Event/SimCalorimeterHit.h"
 #include "Recon/Event/HgcrocDigiCollection.h"
 #include "Ecal/Event/EcalHit.h"
 #include "DetDescr/EcalHexReadout.h"

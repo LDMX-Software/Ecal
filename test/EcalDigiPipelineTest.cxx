@@ -6,6 +6,13 @@
 #include "Framework/EventProcessor.h"
 #include "Framework/Process.h"
 
+#include "SimCore/Event/SimCalorimeterHit.h"
+#include "Recon/Event/HgcrocTrigDigi.h"
+#include "Recon/Event/HgcrocDigiCollection.h"
+#include "Ecal/Event/EcalHit.h"
+
+#include <fstream> //to write config file
+
 namespace ecal {
 namespace test {
 
