@@ -14,9 +14,7 @@
 #include "Framework/EventProcessor.h"
 #include "Framework/Parameters.h"
 
-#ifdef LDMX_USE_ONNXRUNTIME
 #include "Tools/ONNXRuntime.h"
-#endif
 
 //C++
 #include <map>
@@ -128,7 +126,7 @@ namespace ldmx {
             bool verbose_{false};
             bool doesPassVeto_{false};
 
-            std::unique_ptr<EcalHexReadout> hexReadout_;
+            const EcalHexReadout* hexReadout_;
 
             std::string bdtFileName_;
             std::string cellFileNamexy_;
@@ -137,9 +135,7 @@ namespace ldmx {
             /** Name of the collection which will containt the results. */
             std::string collectionName_{"EcalVeto"};
 
-#ifdef LDMX_USE_ONNXRUNTIME
             std::unique_ptr<Ort::ONNXRuntime> rt_;
-#endif
 
     };
 

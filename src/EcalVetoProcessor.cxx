@@ -63,12 +63,7 @@ namespace ldmx {
     void EcalVetoProcessor::configure(Parameters& parameters) {
         doBdt_ = parameters.getParameter< bool >("do_bdt");
         if (doBdt_){
-#ifdef LDMX_USE_ONNXRUNTIME
             rt_ = std::make_unique<Ort::ONNXRuntime>(parameters.getParameter<std::string>("bdt_file"));
-#else
-            EXCEPTION_RAISE("EcalVetoProcessor",
-                            "Cannot run BDT because ONNXRuntime is not installed.");
-#endif
         }
 
         cellFileNamexy_ = parameters.getParameter< std::string >("cellxy_file");
@@ -85,9 +80,7 @@ namespace ldmx {
             }
         }
 
-
-        auto hexReadout{parameters.getParameter<Parameters>("hexReadout")};
-        hexReadout_ = std::make_unique<EcalHexReadout>(hexReadout);
+	hexReadout_=0; // load during event processing
 
         nEcalLayers_ = parameters.getParameter< int >("num_ecal_layers");
 
@@ -124,6 +117,11 @@ namespace ldmx {
 
     void EcalVetoProcessor::produce(Event& event) {
 
+        // Get the Ecal Geometry
+	const EcalHexReadout& hexReadout = getCondition<EcalHexReadout>(EcalHexReadout::CONDITIONS_OBJECT_NAME);
+	hexReadout_=&hexReadout;
+
+      
         EcalVetoResult result;
 
         clearProcessor();
@@ -395,7 +393,6 @@ namespace ldmx {
         result.setVariables(nReadoutHits_, deepestLayerHit_, summedDet_, summedTightIso_, maxCellDep_,
             showerRMS_, xStd_, yStd_, avgLayerHit_, stdLayerHit_, ecalBackEnergy_, electronContainmentEnergy, photonContainmentEnergy, outsideContainmentEnergy, outsideContainmentNHits, outsideContainmentXstd, outsideContainmentYstd, ecalLayerEdepReadout_, recoilP, recoilPos);
 
-#ifdef LDMX_USE_ONNXRUNTIME
         if (doBdt_) {
             buildBDTFeatureVector(result);
             Ort::FloatArrays inputs({bdtFeatures_});
@@ -412,7 +409,6 @@ namespace ldmx {
                 setStorageHint(hint_shouldDrop);
             }
         }
-#endif
 
         if (inside) {
             setStorageHint(hint_shouldKeep);
@@ -420,6 +416,7 @@ namespace ldmx {
             setStorageHint(hint_shouldDrop);
         }
         event.add( collectionName_, result );
+	hexReadout_=0;
     }
 
     /* Function to calculate the energy weighted shower centroid */
