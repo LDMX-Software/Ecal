@@ -280,7 +280,7 @@ DECLARE_ANALYZER_NS(ecal::test, EcalCheckEnergyReconstruction)
  * @TODO check layer weights are being calculated correctly somehow
  */
 TEST_CASE("Ecal Digi Pipeline test", "[Ecal][functionality]") {
-  const std::string config_file{"ecal_digi_pipeline_test_config.py"};
+  const std::string config_file{"test/ecal_digi_pipeline_test_config.py"};
 
   char **args;
   framework::ProcessHandle p;

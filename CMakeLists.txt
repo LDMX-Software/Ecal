@@ -40,7 +40,8 @@ setup_library(module Ecal
                            ONNXRuntime::Interface
 )
 
-setup_test(dependencies Ecal::Ecal)
+setup_test(dependencies Ecal::Ecal
+           configs ${PROJECT_SOURCE_DIR}/test/ecal_digi_pipeline.py)
 
 setup_python(package_name ${PYTHON_PACKAGE_NAME}/Ecal)
 
