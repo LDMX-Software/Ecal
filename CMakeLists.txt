@@ -23,7 +23,7 @@ if(BUILD_EVENT_ONLY)
     setup_library(module Ecal
                   name Event
                   dependencies ROOT::Core 
-                               Recon::Event SimCore::Event 
+                               Recon::Event
                   register_target)
 
     return()
@@ -36,7 +36,12 @@ find_package(ONNXRuntime 1.2.0)
 
 setup_library(module Ecal
               dependencies ROOT::Physics 
-                           Framework::Framework Recon::Event Tools::Tools DetDescr::DetDescr 
+                           Framework::Framework 
+                           Tools::Tools 
+                           DetDescr::DetDescr 
+                           SimCore::Event
+                           Ecal::Event
+                           Recon::Event 
                            ONNXRuntime::Interface
 )
 
