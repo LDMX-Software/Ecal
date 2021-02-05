@@ -22,7 +22,7 @@ EcalTriggerGeometry::EcalTriggerGeometry(int symmetry,
   if ((symmetry_ & MODULES_MASK) == INPLANE_IDENTICAL) {
     // first set is the same regardless of alignment...
     int tcell = 0;
-    /// lower left-sector
+    /// lower left-sector-before rotation
     for (int v = 1; v <= 10; v += 3) {
       for (int u = 1; u <= 10; u += 3) {
         ldmx::EcalTriggerID tid(0, 0, tcell);
@@ -38,7 +38,7 @@ EcalTriggerGeometry::EcalTriggerGeometry(int symmetry,
         tcell++;
       }
     }
-    /// upper-left sector
+    /// upper-left sector-rotate-before rotation
     for (int v = 13; v <= 22; v += 3) {
       for (int u = v - 10; u <= v; u += 3) {
         ldmx::EcalTriggerID tid(0, 0, tcell);
@@ -55,7 +55,7 @@ EcalTriggerGeometry::EcalTriggerGeometry(int symmetry,
         tcell++;
       }
     }
-    // right side
+    // right side-before rotation
     for (int v = 2; v <= 22; v += 3) {
       int irow = (v - 2) / 3;
       for (int icol = 0; icol <= std::min(irow, 3); icol++) {
@@ -130,9 +130,9 @@ ldmx::EcalTriggerID EcalTriggerGeometry::belongsTo(
 }
 
 // as it happens, the fifth precision cell in the list is the center cell
-std::pair<double, double> EcalTriggerGeometry::globalPosition(
+std::tuple<double,double,double> EcalTriggerGeometry::globalPosition(
     ldmx::EcalTriggerID triggerCell) const {
-  if (!ecalGeometry_) return std::pair<double, double>(0, 0);
+  if (!ecalGeometry_) return std::tuple<double,double,double>(0,0,0);
   ldmx::EcalID pid = centerInTriggerCell(triggerCell);
   return ecalGeometry_->getCellCenterAbsolute(pid);
 }

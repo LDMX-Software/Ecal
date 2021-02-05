@@ -58,7 +58,7 @@ class EcalVetoProcessor : public framework::Producer {
   bool isInShowerOuterRing(ldmx::EcalID centroidID, ldmx::EcalID probeID) {
     return hexReadout_->isNNN(centroidID, probeID);
   }
-  std::pair<double, double> getCellCentroidXYPair(ldmx::EcalID centroidID) {
+  std::tuple<double,double,double> getCellCentroidXYZTuple(ldmx::EcalID centroidID){
     return hexReadout_->getCellCenterAbsolute(centroidID);
   }
   std::vector<ldmx::EcalID> getInnerRingCellIds(ldmx::EcalID id) {
