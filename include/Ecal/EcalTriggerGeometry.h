@@ -56,7 +56,7 @@ class EcalTriggerGeometry : public framework::ConditionsObject {
   /** Returns the center of the given trigger cell, depends on Ecal Geometry
    * (ldmx::EcalHexReadout) */
 
-  std::tuple<double,double,double> globalPosition(
+  std::tuple<double, double, double> globalPosition(
       ldmx::EcalTriggerID triggerCell) const;
 
   /** Returns the local (within module) center of the given trigger cell,

@@ -1,6 +1,8 @@
 #include "Ecal/EcalTriggerGeometry.h"
+
 #include <iostream>
 #include <sstream>
+
 #include "DetDescr/EcalHexReadout.h"
 #include "Framework/ConditionsObjectProvider.h"
 #include "Framework/EventHeader.h"
@@ -130,9 +132,9 @@ ldmx::EcalTriggerID EcalTriggerGeometry::belongsTo(
 }
 
 // as it happens, the fifth precision cell in the list is the center cell
-std::tuple<double,double,double> EcalTriggerGeometry::globalPosition(
+std::tuple<double, double, double> EcalTriggerGeometry::globalPosition(
     ldmx::EcalTriggerID triggerCell) const {
-  if (!ecalGeometry_) return std::tuple<double,double,double>(0,0,0);
+  if (!ecalGeometry_) return std::tuple<double, double, double>(0, 0, 0);
   ldmx::EcalID pid = centerInTriggerCell(triggerCell);
   return ecalGeometry_->getCellCenterAbsolute(pid);
 }

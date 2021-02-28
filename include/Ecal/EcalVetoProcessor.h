@@ -14,7 +14,6 @@
 #include "Ecal/Event/EcalVetoResult.h"
 #include "Framework/Configure/Parameters.h"
 #include "Framework/EventProcessor.h"
-
 #include "Tools/ONNXRuntime.h"
 
 // C++
@@ -58,7 +57,8 @@ class EcalVetoProcessor : public framework::Producer {
   bool isInShowerOuterRing(ldmx::EcalID centroidID, ldmx::EcalID probeID) {
     return hexReadout_->isNNN(centroidID, probeID);
   }
-  std::tuple<double,double,double> getCellCentroidXYZTuple(ldmx::EcalID centroidID){
+  std::tuple<double, double, double> getCellCentroidXYZTuple(
+      ldmx::EcalID centroidID) {
     return hexReadout_->getCellCenterAbsolute(centroidID);
   }
   std::vector<ldmx::EcalID> getInnerRingCellIds(ldmx::EcalID id) {

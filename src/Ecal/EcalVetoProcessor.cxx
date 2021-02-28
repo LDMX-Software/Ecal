@@ -12,6 +12,7 @@
 
 // C++
 #include <stdlib.h>
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -207,7 +208,6 @@ void EcalVetoProcessor::produce(framework::Event &event) {
         event.getCollection<ldmx::SimTrackerHit>("EcalScoringPlaneHits")};
     float pmax = 0;
     for (ldmx::SimTrackerHit &spHit : ecalSpHits) {
-      
       ldmx::SimSpecialID hit_id(spHit.getID());
       if (hit_id.plane() != 31 || spHit.getMomentum()[2] <= 0) continue;
 
@@ -326,7 +326,9 @@ void EcalVetoProcessor::produce(framework::Event &event) {
       if (deepestLayerHit_ < id.layer()) {
         deepestLayerHit_ = id.layer();
       }
-      XYCoords xy_pair = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
+      XYCoords xy_pair =
+          std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)),
+                         std::get<1>(getCellCentroidXYZTuple(id)));
       float distance_ele_trajectory =
           ele_trajectory.size()
               ? sqrt(
@@ -395,13 +397,14 @@ void EcalVetoProcessor::produce(framework::Event &event) {
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     ldmx::EcalID id = hitID(hit);
     if (hit.getEnergy() > 0) {
-      xStd_ +=
-          pow((std::get<0>(getCellCentroidXYZTuple(id)) - xMean), 2) * hit.getEnergy();
-      yStd_ +=
-          pow((std::get<1>(getCellCentroidXYZTuple(id)) - yMean), 2) * hit.getEnergy();
+      xStd_ += pow((std::get<0>(getCellCentroidXYZTuple(id)) - xMean), 2) *
+               hit.getEnergy();
+      yStd_ += pow((std::get<1>(getCellCentroidXYZTuple(id)) - yMean), 2) *
+               hit.getEnergy();
       stdLayerHit_ += pow((id.layer() - wavgLayerHit), 2) * hit.getEnergy();
     }
-    XYCoords xy_pair = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
+    XYCoords xy_pair = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)),
+                                      std::get<1>(getCellCentroidXYZTuple(id)));
     float distance_ele_trajectory =
         ele_trajectory.size()
             ? sqrt(pow((xy_pair.first - ele_trajectory[id.layer()].first), 2) +
@@ -549,7 +552,9 @@ ldmx::EcalID EcalVetoProcessor::GetShowerCentroidIDAndRMS(
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     ldmx::EcalID id = hitID(hit);
     CellEnergyPair cell_energy_pair = std::make_pair(id, hit.getEnergy());
-    XYCoords centroidCoords = std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)), std::get<1>(getCellCentroidXYZTuple(id)));
+    XYCoords centroidCoords =
+        std::make_pair(std::get<0>(getCellCentroidXYZTuple(id)),
+                       std::get<1>(getCellCentroidXYZTuple(id)));
     wgtCentroidCoords.first = wgtCentroidCoords.first +
                               centroidCoords.first * cell_energy_pair.second;
     wgtCentroidCoords.second = wgtCentroidCoords.second +
@@ -564,7 +569,9 @@ ldmx::EcalID EcalVetoProcessor::GetShowerCentroidIDAndRMS(
   // Find Nearest Cell to Centroid
   float maxDist = 1e6;
   for (const ldmx::EcalHit &hit : ecalRecHits) {
-  XYCoords centroidCoords = std::make_pair(std::get<0>(getCellCentroidXYZTuple(hitID(hit))), std::get<1>(getCellCentroidXYZTuple(hitID(hit))));
+    XYCoords centroidCoords =
+        std::make_pair(std::get<0>(getCellCentroidXYZTuple(hitID(hit))),
+                       std::get<1>(getCellCentroidXYZTuple(hitID(hit))));
 
     float deltaR =
         pow(pow((centroidCoords.first - wgtCentroidCoords.first), 2) +
