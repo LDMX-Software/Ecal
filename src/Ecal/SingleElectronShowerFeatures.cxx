@@ -1,4 +1,4 @@
-#include "Ecal/EcalVetoProcessor.h"
+#include "Ecal/SingleElectronShowerFeatures.h"
 
 // LDMX
 #include "DetDescr/SimSpecialID.h"
@@ -20,7 +20,7 @@ namespace ecal {
 
 // arrays holding 68% containment radius per layer for different bins in
 // momentum/angle
-const std::vector<double> radius68_thetalt10_plt500 = {
+static const std::vector<double> radius68_thetalt10_plt500 = {
     4.045666158618167,  4.086393662224346,  4.359141107602775,
     4.666549994726691,  5.8569181911416015, 6.559716356124256,
     8.686967529043072,  10.063482736354674, 13.053528344041274,
@@ -34,7 +34,7 @@ const std::vector<double> radius68_thetalt10_plt500 = {
     93.34370253818409,  96.59471226749734,  100.7323427930147,
     103.98335252232795};
 
-const std::vector<double> radius68_thetalt10_pgt500 = {
+static const std::vector<double> radius68_thetalt10_pgt500 = {
     4.081926458777424,  4.099431732299409,  4.262428482867968,
     4.362017581473145,  4.831341579961153,  4.998346041276382,
     6.2633736512415705, 6.588371889265881,  8.359969947444522,
@@ -48,7 +48,7 @@ const std::vector<double> radius68_thetalt10_pgt500 = {
     70.75204770811342,  74.022963432757,    78.18592874985525,
     81.45684447449884};
 
-const std::vector<double> radius68_theta10to20 = {
+static const std::vector<double> radius68_theta10to20 = {
     4.0251896715647115, 4.071661598616328,  4.357690094817289,
     4.760224640141712,  6.002480766325418,  6.667318981016246,
     8.652513285172342,  9.72379373302137,   12.479492693251478,
@@ -62,7 +62,7 @@ const std::vector<double> radius68_theta10to20 = {
     80.25752243266861,  84.25040421346615,  89.33223137382352,
     93.32511315462106};
 
-const std::vector<double> radius68_thetagt20 = {
+static const std::vector<double> radius68_thetagt20 = {
     4.0754238481177705, 4.193693485630508,  5.14209420056253,
     6.114996249971468,  7.7376807326481645, 8.551663213602291,
     11.129110612057813, 13.106293737495639, 17.186617323282082,
@@ -76,20 +76,16 @@ const std::vector<double> radius68_thetagt20 = {
     177.45988386054293, 187.18163602489574, 199.55472065581682,
     209.2764728201696};
 
-void EcalVetoProcessor::configure(framework::config::Parameters &parameters) {
+void SingleElectronShowerFeatures::configure(framework::config::Parameters &parameters) {
 
   nEcalLayers_ = parameters.getParameter<int>("num_ecal_layers");
-
-  ecalLayerEdepRaw_.resize(nEcalLayers_, 0);
-  ecalLayerEdepReadout_.resize(nEcalLayers_, 0);
-  ecalLayerTime_.resize(nEcalLayers_, 0);
 
   // Set the collection name as defined in the configuration
   rec_pass_name_ = parameters.getParameter<std::string>("rec_pass_name");
   rec_coll_name_ = parameters.getParameter<std::string>("rec_coll_name");
 }
 
-void EcalVetoProcessor::produce(framework::Event &event) {
+void SingleElectronShowerFeatures::produce(framework::Event &event) {
 
   /****************************************************************************
    * Get Electron+Photon Tracks Upstream of ECAL
@@ -226,7 +222,7 @@ void EcalVetoProcessor::produce(framework::Event &event) {
   auto wgtCentroidCoords = std::make_pair<float, float>(0., 0.);
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     ldmx::EcalID id(hit.getID());
-    CellEnergyPair cell_energy_pair = std::make_pair(id, hit.getEnergy());
+    auto cell_energy_pair = std::make_pair(id, hit.getEnergy());
     XYCoords centroidCoords = hexReadout.getCellCentroidXYPair(id);
     wgtCentroidCoords.first = wgtCentroidCoords.first +
                               centroidCoords.first * cell_energy_pair.second;
@@ -319,33 +315,37 @@ void EcalVetoProcessor::produce(framework::Event &event) {
 
   // Containment variables
   unsigned int nregions = 5;
-  std::vector<float> electronContainmentEnergy(nregions, 0.0);
-  std::vector<float> photonContainmentEnergy(nregions, 0.0);
-  std::vector<float> outsideContainmentEnergy(nregions, 0.0);
   std::vector<int> outsideContainmentNHits(nregions, 0);
-  std::vector<float> outsideContainmentXmean(nregions, 0.0);
-  std::vector<float> outsideContainmentYmean(nregions, 0.0);
-  std::vector<float> outsideContainmentXstd(nregions, 0.0);
-  std::vector<float> outsideContainmentYstd(nregions, 0.0);
+  std::vector<float> electronContainmentEnergy(nregions, 0.0),
+      photonContainmentEnergy(nregions, 0.0),
+      outsideContainmentEnergy(nregions, 0.0),
+      outsideContainmentXmean(nregions, 0.0),
+      outsideContainmentYmean(nregions, 0.0),
+      outsideContainmentXstd(nregions, 0.0),
+      outsideContainmentYstd(nregions, 0.0);
+  std::vector<float> ecalLayerEdepRaw(nEcalLayers_, 0),
+      ecalLayerEdepReadout(nEcalLayers_, 0), ecalLayerTime(nEcalLayers_, 0);
+  int nReadoutHits{0}, deepestLayerHit{0};
+  double ecalBackEnergy{0}, maxCellDep{0}, summedDet{0}, summedTightIso{0},
+      showerRMS{0}, xStd{0}, yStd{0}, avgLayerHit{0}, stdLayerHit{0};
 
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     // Layer-wise quantities
     ldmx::EcalID id = hitID(hit);
-    ecalLayerEdepRaw_[id.layer()] =
-        ecalLayerEdepRaw_[id.layer()] + hit.getEnergy();
-    if (id.layer() >= 20) ecalBackEnergy_ += hit.getEnergy();
-    if (maxCellDep_ < hit.getEnergy()) maxCellDep_ = hit.getEnergy();
+    ecalLayerEdepRaw[id.layer()] += hit.getEnergy();
+    if (id.layer() >= 20) ecalBackEnergy += hit.getEnergy();
+    if (maxCellDep < hit.getEnergy()) maxCellDep = hit.getEnergy();
     if (hit.getEnergy() > 0) {
-      nReadoutHits_++;
-      ecalLayerEdepReadout_[id.layer()] += hit.getEnergy();
-      ecalLayerTime_[id.layer()] += (hit.getEnergy()) * hit.getTime();
+      nReadoutHits++;
+      ecalLayerEdepReadout[id.layer()] += hit.getEnergy();
+      ecalLayerTime[id.layer()] += (hit.getEnergy()) * hit.getTime();
       XYCoords xy_pair = hexReadout.getCellCentroidXYPair(id);
       xMean += xy_pair.first * hit.getEnergy();
       yMean += xy_pair.second * hit.getEnergy();
-      avgLayerHit_ += id.layer();
+      avgLayerHit += id.layer();
       wavgLayerHit += id.layer() * hit.getEnergy();
-      if (deepestLayerHit_ < id.layer()) {
-        deepestLayerHit_ = id.layer();
+      if (deepestLayerHit < id.layer()) {
+        deepestLayerHit = id.layer();
       }
       float distance_ele_trajectory =
           ele_trajectory.size()
@@ -386,17 +386,16 @@ void EcalVetoProcessor::produce(framework::Event &event) {
     if (energy > 0) summedTightIso_ += energy;
   }
 
-  for (int iLayer = 0; iLayer < ecalLayerEdepReadout_.size(); iLayer++) {
-    ecalLayerTime_[iLayer] =
-        ecalLayerTime_[iLayer] / ecalLayerEdepReadout_[iLayer];
-    summedDet_ += ecalLayerEdepReadout_[iLayer];
+  for (int iLayer = 0; iLayer < ecalLayerEdepReadout.size(); iLayer++) {
+    ecalLayerTime[iLayer] /= ecalLayerEdepReadout[iLayer];
+    summedDet += ecalLayerEdepReadout[iLayer];
   }
 
-  if (nReadoutHits_ > 0) {
-    avgLayerHit_ /= nReadoutHits_;
-    wavgLayerHit /= summedDet_;
-    xMean /= summedDet_;
-    yMean /= summedDet_;
+  if (nReadoutHits > 0) {
+    avgLayerHit /= nReadoutHits;
+    wavgLayerHit /= summedDet;
+    xMean /= summedDet;
+    yMean /= summedDet;
   } else {
     wavgLayerHit = 0;
     avgLayerHit_ = 0;
@@ -419,11 +418,11 @@ void EcalVetoProcessor::produce(framework::Event &event) {
     ldmx::EcalID id = hitID(hit);
     XYCoords xy_pair = hexReadout.getCellCentroidXYPair(id);
     if (hit.getEnergy() > 0) {
-      xStd_ +=
+      xStd +=
           pow((xy_pair.first - xMean), 2) * hit.getEnergy();
-      yStd_ +=
+      yStd +=
           pow((xy_pair.second - yMean), 2) * hit.getEnergy();
-      stdLayerHit_ += pow((id.layer() - wavgLayerHit), 2) * hit.getEnergy();
+      stdLayerHit += pow((id.layer() - wavgLayerHit), 2) * hit.getEnergy();
     }
     float distance_ele_trajectory =
         ele_trajectory.size()
@@ -451,13 +450,13 @@ void EcalVetoProcessor::produce(framework::Event &event) {
   }
 
   if (nReadoutHits_ > 0) {
-    xStd_ = sqrt(xStd_ / summedDet_);
-    yStd_ = sqrt(yStd_ / summedDet_);
-    stdLayerHit_ = sqrt(stdLayerHit_ / summedDet_);
+    xStd = sqrt(xStd / summedDet);
+    yStd = sqrt(yStd / summedDet);
+    stdLayerHit = sqrt(stdLayerHit / summedDet);
   } else {
-    xStd_ = 0;
-    yStd_ = 0;
-    stdLayerHit_ = 0;
+    xStd = 0;
+    yStd = 0;
+    stdLayerHit = 0;
   }
 
   for (unsigned int ireg = 0; ireg < nregions; ireg++) {
@@ -470,12 +469,12 @@ void EcalVetoProcessor::produce(framework::Event &event) {
   }
 
   result.setVariables(
-      nReadoutHits_, deepestLayerHit_, summedDet_, summedTightIso_, maxCellDep_,
-      showerRMS_, xStd_, yStd_, avgLayerHit_, stdLayerHit_, ecalBackEnergy_,
-      nStraightTracks_, nLinregTracks_, firstNearPhLayer_, epAng_, epSep_, 
+      nReadoutHits, deepestLayerHit, summedDet, summedTightIso, maxCellDep,
+      showerRMS, xStd, yStd, avgLayerHit, stdLayerHit, ecalBackEnergy,
+      nStraightTracks, nLinregTracks, firstNearPhLayer, epAng, epSep, 
       electronContainmentEnergy, photonContainmentEnergy,
       outsideContainmentEnergy, outsideContainmentNHits, outsideContainmentXstd,
-      outsideContainmentYstd, ecalLayerEdepReadout_, recoilP, recoilPos);
+      outsideContainmentYstd, ecalLayerEdepReadout, recoilP, recoilPos);
 
   event.add(getName(), result);
 }
