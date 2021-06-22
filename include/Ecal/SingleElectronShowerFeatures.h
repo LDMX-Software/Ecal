@@ -22,12 +22,12 @@ namespace ecal {
  */
 class SingleElectronShowerFeatures : public framework::Producer {
  public:
-  /// pair a cell's ID with the energy deposited in it
-  typedef std::pair<ldmx::EcalID, float> CellEnergyPair;
-
   /// x,y coordinate pair
   typedef std::pair<float, float> XYCoords;
 
+  /**
+   * Normal blank constructor to register as a producer
+   */
   SingleElectronShowerFeatures(const std::string& name, framework::Process& process)
       : Producer(name, process) {}
 
@@ -42,35 +42,30 @@ class SingleElectronShowerFeatures : public framework::Producer {
    * Calculate the single electron shower features.
    *
    * The features that are calculated here are
-   *  - 
-   *
+   *  - Total energy in ECal (summedDet)
+   *  - Total isolated energy (summedTightIso)
+   *  - Energy after layer 20 (ecalBackEnergy)
+   *  - Maximum energy deposited in a single cell (maxCellDep)
+   *  - Transverse RMS of all hits in shower (showerRMS)
+   *  - STD of x-position of all hits (xStd)
+   *  - STD of y-position of all hits (yStd)
+   *  - Average layer hit (avgLayerHit)
+   *  - STD of layers hit (stdLayerHit)
+   *  - Num hits readout (nReadoutHits)
+   *  - Deepest layer hit (deepestLayerHit)
+   *  - Energy within electron containment region for 5 radii
+   *  - Energy within photon containment region for 5 radii
+   *  - N Hits, X and Y mean and STD for hits outside 
+   *    either electron or photon containment region for 5 radii
    */
   void produce(framework::Event& event);
 
  private:
 
-  std::vector<float> ecalLayerEdepRaw_;
-  std::vector<float> ecalLayerEdepReadout_;
-  std::vector<float> ecalLayerTime_;
-
-  int nEcalLayers_{0};
-  int backEcalStartingLayer_{0};
-  int nReadoutHits_{0};
-  int deepestLayerHit_{0};
-  int doBdt_{0};
-
-  double summedDet_{0};
-  double summedTightIso_{0};
-  double maxCellDep_{0};
-  double showerRMS_{0};
-  double xStd_{0};
-  double yStd_{0};
-  double avgLayerHit_{0};
-  double stdLayerHit_{0};
-  double ecalBackEnergy_{0};
-
   bool verbose_{false};
 
+  /// number of layers in the ECal
+  int nEcalLayers_{0};
   /// name of rec pass to use
   std::string rec_pass_name_;
   /// name of rec collection to use
