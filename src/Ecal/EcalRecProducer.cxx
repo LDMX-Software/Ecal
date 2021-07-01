@@ -115,8 +115,20 @@ void EcalRecProducer::produce(framework::Event& event) {
       msg << "Recieved ";
       if (digi.isTOT()) msg << "TOT " << digi.tot();
       else msg << "ADC " << digi.soi().adc_t();
-      msg << "below pedestal.";
-      EXCEPTION_RAISE("BadRec", msg.str());
+      msg << " below pedestal from channel " << id;
+      //EXCEPTION_RAISE("BadRec", msg.str());
+      std::cout << msg.str();
+      auto ecalSimHits{event.getCollection<ldmx::SimCalorimeterHit>(
+          simHitCollName_, simHitPassName_)};
+      auto real_it{std::find_if(ecalSimHits.begin(), ecalSimHits.end(),
+                                [&digi](ldmx::SimCalorimeterHit& sim_hit) {
+                                  return sim_hit.getID() == digi.id();
+                                })};
+      if (real_it == ecalSimHits.end()) {
+        std::cout << " is a noise hit";
+      }
+      std::cout << std::endl;
+      continue;
     }
 
     double num_mips_equivalent = charge / charge_per_mip_;
