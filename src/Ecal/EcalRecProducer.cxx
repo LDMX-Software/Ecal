@@ -8,6 +8,10 @@
 #include "DetDescr/EcalHexReadout.h"
 #include "Ecal/EcalReconConditions.h"
 
+#include "Ecal/Event/EcalHit.h"
+#include "Recon/Event/HgcrocDigiCollection.h"
+#include "SimCore/Event/SimCalorimeterHit.h"
+
 namespace ecal {
 
 EcalRecProducer::EcalRecProducer(const std::string& name,
