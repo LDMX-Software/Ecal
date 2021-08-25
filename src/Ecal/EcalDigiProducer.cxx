@@ -28,8 +28,6 @@ void EcalDigiProducer::configure(framework::config::Parameters& ps) {
   //  used  in actual digitization
   auto hgcrocParams = ps.getParameter<framework::config::Parameters>("hgcroc");
   hgcroc_ = std::make_unique<ldmx::HgcrocEmulator>(hgcrocParams);
-  gain_ = hgcrocParams.getParameter<double>("gain");
-  pedestal_ = hgcrocParams.getParameter<double>("pedestal");
   clockCycle_ = hgcrocParams.getParameter<double>("clockCycle");
   nADCs_ = hgcrocParams.getParameter<int>("nADCs");
   iSOI_ = hgcrocParams.getParameter<int>("iSOI");
@@ -40,6 +38,8 @@ void EcalDigiProducer::configure(framework::config::Parameters& ps) {
   inputPassName_ = ps.getParameter<std::string>("inputPassName");
   digiCollName_ = ps.getParameter<std::string>("digiCollName");
 
+  zero_suppression_ = ps.getParameter<bool>("zero_suppression");
+
   // physical constants
   //  used to calculate unit conversions
   MeV_ = ps.getParameter<double>("MeV");
@@ -49,14 +49,16 @@ void EcalDigiProducer::configure(framework::config::Parameters& ps) {
   ns_ = 1024. / clockCycle_;
 
   // Configure generator that will produce noise hits in empty channels
-  readoutThreshold_ = hgcrocParams.getParameter<double>("readoutThreshold");
-  noiseGenerator_->setNoise(
-      hgcrocParams.getParameter<double>("noiseRMS"));  // rms noise in mV
-  noiseGenerator_->setPedestal(
-      gain_ * pedestal_);  // mean noise amplitude (if using Gaussian Model for
-                           // the noise) in mV
-  noiseGenerator_->setNoiseThreshold(
-      gain_ * readoutThreshold_);  // threshold for readout in mV
+  double readoutThreshold = ps.getParameter<double>("avgReadoutThreshold");
+  double pedestal = ps.getParameter<double>("avgPedestal");
+  // saved because it might be used later
+  avgNoiseRMS_ = hgcrocParams.getParameter<double>("noiseRMS");
+  // rms noise in mV
+  noiseGenerator_->setNoise(avgNoiseRMS_);
+  // mean noise amplitude (if using Gaussian Model for the noise) in mV
+  noiseGenerator_->setPedestal(pedestal);
+  // threshold for readout in mV
+  noiseGenerator_->setNoiseThreshold(readoutThreshold);
 }
 
 void EcalDigiProducer::produce(framework::Event& event) {
@@ -78,6 +80,8 @@ void EcalDigiProducer::produce(framework::Event& event) {
         framework::RandomNumberSeedService::CONDITIONS_OBJECT_NAME);
     hgcroc_->seedGenerator(rseed.getSeed("EcalDigiProducer::HgcrocEmulator"));
   }
+
+  hgcroc_->condition(getCondition<conditions::DoubleTableCondition>("EcalHgcrocConditions"));
 
   // Empty collection to be filled
   ldmx::HgcrocDigiCollection ecalDigis;
@@ -105,7 +109,7 @@ void EcalDigiProducer::produce(framework::Event& event) {
    */
 
   for (auto const& simHit : ecalSimHits) {
-    std::vector<double> voltages, times;
+    std::vector<std::pair<double,double>> pulses_at_chip;
     for (int iContrib = 0; iContrib < simHit.getNumberOfContribs();
          iContrib++) {
       /* debug printout
@@ -117,9 +121,9 @@ void EcalDigiProducer::produce(framework::Event& event) {
        * In reality, each chip has a set time phase that it samples at (relative
        * to target), so the time shifting should be at the emulator level.
        */
-      voltages.push_back(simHit.getContrib(iContrib).edep * MeV_);
-      times.push_back(
-          simHit.getContrib(iContrib).time  // global time (t=0ns at target)
+      pulses_at_chip.emplace_back(
+        simHit.getContrib(iContrib).edep * MeV_,
+        simHit.getContrib(iContrib).time  // global time (t=0ns at target)
           - simHit.getPosition().at(2) /
                 299.702547  // shift light-speed particle traveling along z
       );
@@ -130,12 +134,15 @@ void EcalDigiProducer::produce(framework::Event& event) {
 
     /* debug printout
     std::cout << hitID << " "
-        << simHit.getEdep() << std::endl;
+        << simHit.getEdep() 
+        << " MeV at "
+        << simHit.getTime() - simHit.getPosition().at(2)/299.702547
+        << std::endl;
      */
     // container emulator uses to write out samples and
     // transfer samples into the digi collection
     std::vector<ldmx::HgcrocDigiCollection::Sample> digiToAdd;
-    if (hgcroc_->digitize(hitID, voltages, times, digiToAdd)) {
+    if (hgcroc_->digitize(hitID, pulses_at_chip, digiToAdd)) {
       ecalDigis.addDigi(hitID, digiToAdd);
     }
   }
@@ -157,39 +164,52 @@ void EcalDigiProducer::produce(framework::Event& event) {
     int nCellsPerModule = hexGeom.getNumCellsPerModule();
     int numEmptyChannels = nEcalLayers * nModulesPerLayer * nCellsPerModule -
                            ecalDigis.getNumDigis();
-    // noise generator gives us a list of noise amplitudes [mV] that randomly
-    // populate the empty channels and are above the readout threshold
-    auto noiseHitAmplitudes{
-        noiseGenerator_->generateNoiseHits(numEmptyChannels)};
-    std::vector<double> voltages(1, 0.), times(1, 0.);
-    for (double noiseHit : noiseHitAmplitudes) {
-      // generate detector ID for noise hit
-      // making sure that it is in an empty channel
-      unsigned int noiseID;
-      do {
-        int layerID = noiseInjector_->Integer(nEcalLayers);
-        int moduleID = noiseInjector_->Integer(nModulesPerLayer);
-        int cellID = noiseInjector_->Integer(nCellsPerModule);
-        auto detID = ldmx::EcalID(layerID, moduleID, cellID);
-        noiseID = detID.raw();
-      } while (filledDetIDs.find(noiseID) != filledDetIDs.end());
-      filledDetIDs.insert(noiseID);
-      // std::cout << noiseID << " -> " << noiseHit + readoutThreshold_ -
-      // gain_*pedestal_ << std::endl;
 
-      // get a time for this noise hit
-      times[0] = noiseInjector_->Uniform(clockCycle_);
+    if (zero_suppression_) {
+      // noise generator gives us a list of noise amplitudes [mV] that randomly
+      // populate the empty channels and are above the readout threshold
+      auto noiseHitAmplitudes{
+          noiseGenerator_->generateNoiseHits(numEmptyChannels)};
+      std::vector<std::pair<double,double>> fake_pulse(1,{0.,0.});
+      for (double noiseHit : noiseHitAmplitudes) {
+        // generate detector ID for noise hit
+        // making sure that it is in an empty channel
+        unsigned int noiseID;
+        do {
+          int layerID = noiseInjector_->Integer(nEcalLayers);
+          int moduleID = noiseInjector_->Integer(nModulesPerLayer);
+          int cellID = noiseInjector_->Integer(nCellsPerModule);
+          auto detID = ldmx::EcalID(layerID, moduleID, cellID);
+          noiseID = detID.raw();
+        } while (filledDetIDs.find(noiseID) != filledDetIDs.end());
+        filledDetIDs.insert(noiseID);
 
-      // noise generator gives the amplitude above the readout threshold
-      //  we need to convert it to the amplitdue above the pedestal
-      voltages[0] = noiseHit + gain_ * readoutThreshold_ - gain_ * pedestal_;
+        // noise generator gives the amplitude above the readout threshold
+        //  we need to convert it to the amplitude above the pedestal
+        noiseHit +=
+            hgcroc_->gain(noiseID) *
+            (hgcroc_->readoutThreshold(noiseID) - hgcroc_->pedestal(noiseID));
 
-      std::vector<ldmx::HgcrocDigiCollection::Sample> digiToAdd;
-      if (hgcroc_->digitize(noiseID, voltages, times, digiToAdd)) {
-        ecalDigis.addDigi(noiseID, digiToAdd);
-      }
-    }  // loop over noise amplitudes
-  }    // if we should do the noise
+        // create a digi as put it into the collection
+        ecalDigis.addDigi(noiseID, hgcroc_->noiseDigi(noiseID, noiseHit));
+      }  // loop over noise amplitudes
+    } else {
+      // no zero suppression, put some noise emulation in **all** empty channels
+      // loop through all channels
+      for (int layer{0}; layer < nEcalLayers; layer++) {
+        for (int module{0}; module < nModulesPerLayer; module++) {
+          for (int cell{0}; cell < nCellsPerModule; cell++) {
+            unsigned int channel{ldmx::EcalID(layer,module,cell).raw()};
+            // check if channel already has a (real) hit in it
+            if (filledDetIDs.find(channel) != filledDetIDs.end())
+              continue;
+            // create a digi as put it into the collection
+            ecalDigis.addDigi(channel, hgcroc_->noiseDigi(channel));
+          }  // cells in each module
+        }    // modules in each layer
+      }      // layers in ECal
+    }        // yes or no zero suppression
+  }          // if we should do the noise
 
   event.add(digiCollName_, ecalDigis);
 
