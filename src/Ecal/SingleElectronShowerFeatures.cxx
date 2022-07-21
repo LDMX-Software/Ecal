@@ -1,9 +1,15 @@
-#include "Ecal/SingleElectronShowerFeatures.h"
 
 // LDMX
 #include "DetDescr/SimSpecialID.h"
+#include "DetDescr/EcalHexReadout.h"
+#include "DetDescr/EcalID.h"
 #include "Ecal/Event/EcalHit.h"
+#include "Ecal/Event/EcalVetoResult.h"
+#include "Framework/Configure/Parameters.h"
+#include "Framework/EventProcessor.h"
 #include "Recon/Event/EventConstants.h"
+#include "SimCore/Event/SimParticle.h"
+#include "SimCore/Event/SimTrackerHit.h"
 
 /*~~~~~~~~~~~*/
 /*   Tools   */
@@ -15,8 +21,67 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <map>
+#include <memory>
 
 namespace ecal {
+
+/**
+ * @class SingleElectronShowerFeatures
+ * @brief Calculates a variety of shower features assuming
+ * a single primary electron in the event.
+ */
+class SingleElectronShowerFeatures : public framework::Producer {
+ public:
+  /// x,y coordinate pair
+  typedef std::pair<float, float> XYCoords;
+
+  /**
+   * Normal blank constructor to register as a producer
+   */
+  SingleElectronShowerFeatures(const std::string& name, framework::Process& process)
+      : Producer(name, process) {}
+
+  /**
+   * Configure the processor using the given user specified parameters.
+   *
+   * @param parameters Set of parameters used to configure this processor.
+   */
+  void configure(framework::config::Parameters& parameters) final override;
+
+  /**
+   * Calculate the single electron shower features.
+   *
+   * The features that are calculated here are
+   *  - Total energy in ECal (summedDet)
+   *  - Total isolated energy (summedTightIso)
+   *  - Energy after layer 20 (ecalBackEnergy)
+   *  - Maximum energy deposited in a single cell (maxCellDep)
+   *  - Transverse RMS of all hits in shower (showerRMS)
+   *  - STD of x-position of all hits (xStd)
+   *  - STD of y-position of all hits (yStd)
+   *  - Average layer hit (avgLayerHit)
+   *  - STD of layers hit (stdLayerHit)
+   *  - Num hits readout (nReadoutHits)
+   *  - Deepest layer hit (deepestLayerHit)
+   *  - Energy within electron containment region for 5 radii
+   *  - Energy within photon containment region for 5 radii
+   *  - N Hits, X and Y mean and STD for hits outside 
+   *    either electron or photon containment region for 5 radii
+   */
+  void produce(framework::Event& event);
+
+ private:
+
+  bool verbose_{false};
+
+  /// number of layers in the ECal
+  int nEcalLayers_{0};
+  /// name of rec pass to use
+  std::string rec_pass_name_;
+  /// name of rec collection to use
+  std::string rec_coll_name_;
+};
 
 // arrays holding 68% containment radius per layer for different bins in
 // momentum/angle
@@ -77,7 +142,6 @@ static const std::vector<double> radius68_thetagt20 = {
     209.2764728201696};
 
 void SingleElectronShowerFeatures::configure(framework::config::Parameters &parameters) {
-
   nEcalLayers_ = parameters.getParameter<int>("num_ecal_layers");
 
   // Set the collection name as defined in the configuration
@@ -166,9 +230,8 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
     /* Calculate where trajectory intersects ECAL layers using position and momentum
      * at scoring plane 
      */
-    auto getTrajectory[&hexReadout](std::vector<double> momentum,
-                                    std::vector<float> position)
-        ->std::vector<XYCoords> {
+    auto getTrajectory = [&hexReadout,this](std::vector<double> momentum,
+                                       std::vector<float> position) {
       std::vector<XYCoords> positions;
       for (int iLayer = 0; iLayer < nEcalLayers_; iLayer++) {
         float posX =
@@ -180,7 +243,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
         positions.push_back(std::make_pair(posX, posY));
       }
       return positions;
-    }
+    };
 
     ele_trajectory = getTrajectory(recoilP, recoilPos);
     std::vector<double> pvec = recoilPAtTarget.size()
@@ -209,7 +272,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
   // Use default binning
   std::vector<double> photon_radii = radius68_thetalt10_plt500;
 
-  // Get the collection of digitized Ecal hits from the event.
+  // Get the collection of reconstructed Ecal hits from the event.
   const auto& ecalRecHits = event.getCollection<ldmx::EcalHit>(
       rec_coll_name_, rec_pass_name_);
 
@@ -219,11 +282,12 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
 
   std::map<ldmx::EcalID, float> cell_to_edep;
   float sumEdep = 0;
+  float showerRMS = 0;
   auto wgtCentroidCoords = std::make_pair<float, float>(0., 0.);
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     ldmx::EcalID id(hit.getID());
     auto cell_energy_pair = std::make_pair(id, hit.getEnergy());
-    XYCoords centroidCoords = hexReadout.getCellCentroidXYPair(id);
+    XYCoords centroidCoords = hexReadout.getCellCenterAbsolute(id);
     wgtCentroidCoords.first = wgtCentroidCoords.first +
                               centroidCoords.first * cell_energy_pair.second;
     wgtCentroidCoords.second = wgtCentroidCoords.second +
@@ -241,7 +305,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
   ldmx::EcalID globalCentroid;
   float maxDist = 1e6;
   for (const ldmx::EcalHit &hit : ecalRecHits) {
-    XYCoords centroidCoords = hexReadout.getCellCentroidXYPair(hitID(hit));
+    XYCoords centroidCoords = hexReadout.getCellCenterAbsolute(ldmx::EcalID(hit.getID()));
 
     float deltaR =
         pow(pow((centroidCoords.first - wgtCentroidCoords.first), 2) +
@@ -256,7 +320,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
   if (sumEdep > 0) showerRMS = showerRMS / sumEdep;
 
   // flatten global centroid to zero layer
-  ldmx::EcalID globalCentroid = ldmx::EcalID(0, globalCentroid.module(), globalCentroid.cell());
+  globalCentroid = ldmx::EcalID(0, globalCentroid.module(), globalCentroid.cell());
 
   /****************************************************************************
    * Determine Map of Isolated Hits ~~ O(n)
@@ -327,11 +391,11 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
       ecalLayerEdepReadout(nEcalLayers_, 0), ecalLayerTime(nEcalLayers_, 0);
   int nReadoutHits{0}, deepestLayerHit{0};
   double ecalBackEnergy{0}, maxCellDep{0}, summedDet{0}, summedTightIso{0},
-      showerRMS{0}, xStd{0}, yStd{0}, avgLayerHit{0}, stdLayerHit{0};
+      xStd{0}, yStd{0}, avgLayerHit{0}, stdLayerHit{0};
 
   for (const ldmx::EcalHit &hit : ecalRecHits) {
     // Layer-wise quantities
-    ldmx::EcalID id = hitID(hit);
+    ldmx::EcalID id(hit.getID());
     ecalLayerEdepRaw[id.layer()] += hit.getEnergy();
     if (id.layer() >= 20) ecalBackEnergy += hit.getEnergy();
     if (maxCellDep < hit.getEnergy()) maxCellDep = hit.getEnergy();
@@ -339,7 +403,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
       nReadoutHits++;
       ecalLayerEdepReadout[id.layer()] += hit.getEnergy();
       ecalLayerTime[id.layer()] += (hit.getEnergy()) * hit.getTime();
-      XYCoords xy_pair = hexReadout.getCellCentroidXYPair(id);
+      XYCoords xy_pair = hexReadout.getCellCenterAbsolute(id);
       xMean += xy_pair.first * hit.getEnergy();
       yMean += xy_pair.second * hit.getEnergy();
       avgLayerHit += id.layer();
@@ -383,7 +447,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
   }
 
   for (const auto &[id, energy] : isocell_to_edep) {
-    if (energy > 0) summedTightIso_ += energy;
+    if (energy > 0) summedTightIso += energy;
   }
 
   for (int iLayer = 0; iLayer < ecalLayerEdepReadout.size(); iLayer++) {
@@ -398,7 +462,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
     yMean /= summedDet;
   } else {
     wavgLayerHit = 0;
-    avgLayerHit_ = 0;
+    avgLayerHit = 0;
     xMean = 0;
     yMean = 0;
   }
@@ -415,8 +479,8 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
    ***************************************************************************/
 
   for (const ldmx::EcalHit &hit : ecalRecHits) {
-    ldmx::EcalID id = hitID(hit);
-    XYCoords xy_pair = hexReadout.getCellCentroidXYPair(id);
+    ldmx::EcalID id(hit.getID());
+    XYCoords xy_pair = hexReadout.getCellCenterAbsolute(id);
     if (hit.getEnergy() > 0) {
       xStd +=
           pow((xy_pair.first - xMean), 2) * hit.getEnergy();
@@ -449,7 +513,7 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
     }
   }
 
-  if (nReadoutHits_ > 0) {
+  if (nReadoutHits > 0) {
     xStd = sqrt(xStd / summedDet);
     yStd = sqrt(yStd / summedDet);
     stdLayerHit = sqrt(stdLayerHit / summedDet);
@@ -468,10 +532,11 @@ void SingleElectronShowerFeatures::produce(framework::Event &event) {
     }
   }
 
+  ldmx::EcalVetoResult result;
   result.setVariables(
       nReadoutHits, deepestLayerHit, summedDet, summedTightIso, maxCellDep,
       showerRMS, xStd, yStd, avgLayerHit, stdLayerHit, ecalBackEnergy,
-      nStraightTracks, nLinregTracks, firstNearPhLayer, epAng, epSep, 
+      0/*nStraightTracks*/, 0/*nLinregTracks*/, 0/*firstNearPhLayer*/, 0/*epAng*/, 0/*epSep*/, 
       electronContainmentEnergy, photonContainmentEnergy,
       outsideContainmentEnergy, outsideContainmentNHits, outsideContainmentXstd,
       outsideContainmentYstd, ecalLayerEdepReadout, recoilP, recoilPos);
