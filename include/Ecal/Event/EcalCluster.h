@@ -15,6 +15,9 @@
 #include <iostream>
 #include <set>
 
+// fire
+#include <fire/io/Data.h>
+
 // ldmx-sw
 #include "Ecal/Event/EcalHit.h"
 
@@ -44,7 +47,7 @@ class EcalCluster {
   /**
    * Reset the EcalCluster object.
    */
-  void Clear();
+  void clear();
 
   /**
    * Take in the hits that make up the cluster.
@@ -101,6 +104,9 @@ class EcalCluster {
   }
 
  private:
+  friend class fire::io::Data<EcalCluster>;
+  void attach(fire::io::Data<EcalCluster>& d);
+
   std::vector<unsigned int> hitIDs_;
   double energy_{0};
   int nHits_{0};
