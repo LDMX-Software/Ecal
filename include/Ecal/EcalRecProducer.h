@@ -74,6 +74,9 @@ class EcalRecProducer : public framework::Producer {
   /// output hit collection name
   std::string recHitCollName_;
 
+  /// store intermediate reconstruction values
+  bool store_intermediate_values_;
+
   /// Energy [MeV] deposited by a MIP in Si 0.5mm thick
   double mip_si_energy_;
 

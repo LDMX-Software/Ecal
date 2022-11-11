@@ -138,6 +138,9 @@ class EcalRecProducer(Producer) :
         self.charge_per_mip = charge_per_mip #fC / MIP
         self.clock_cycle = 25. #ns - needs to match the setting on the chip
 
+        # store extra reco information for detailed study
+        self.store_intermediate_values = False
+
         self.digiCollName = 'EcalDigis'
         self.digiPassName = ''
         self.simHitCollName = 'EcalSimHits'

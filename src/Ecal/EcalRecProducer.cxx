@@ -23,6 +23,7 @@ void EcalRecProducer::configure(framework::config::Parameters& ps) {
   simHitCollName_ = ps.getParameter<std::string>("simHitCollName");
   simHitPassName_ = ps.getParameter<std::string>("simHitPassName");
   recHitCollName_ = ps.getParameter<std::string>("recHitCollName");
+  store_intermediate_values_ = ps.getParameter<bool>("store_intermediate_values");
 
   layerWeights_ = ps.getParameter<std::vector<double>>("layerWeights");
   secondOrderEnergyCorrection_ =
@@ -42,6 +43,8 @@ void EcalRecProducer::produce(framework::Event& event) {
   EcalReconConditions the_conditions(
       getCondition<conditions::DoubleTableCondition>(
           EcalReconConditions::CONDITIONS_NAME));
+
+  std::vector<double> reconstructed_charges;
 
   std::vector<ldmx::EcalHit> ecalRecHits;
   auto ecalDigis =
@@ -107,7 +110,10 @@ void EcalRecProducer::produce(framework::Event& event) {
       /* debug printout
       std::cout << "ADC Mode -> " << charge << " fC";
        */
-    }
+    } // end of TOT or ADC if-else
+
+    if (store_intermediate_values_) 
+        reconstructed_charges.push_back(charge);
 
     /** Negative Electron (charge) count
      * This reconstruction error occurs when the ADC value
@@ -119,6 +125,9 @@ void EcalRecProducer::produce(framework::Event& event) {
      * don't have this zero suppression, so we need to 
      * check that the reconstruction charge (count of electrons)
      * is non-negative.
+     *
+     * Charge Array: [1, 2, -1, 4]
+     * Rec Hits    : [1, 2,     4]
      */
     if (charge < 0) continue;
 
@@ -151,7 +160,7 @@ void EcalRecProducer::produce(framework::Event& event) {
     recHit.setTime(hitTime);
 
     ecalRecHits.push_back(recHit);
-  }
+  } // for loop over hits
 
   if (event.exists(simHitCollName_, simHitPassName_)) {
     // ecal sim hits exist ==> label which hits are real and which are pure
@@ -165,7 +174,12 @@ void EcalRecProducer::produce(framework::Event& event) {
   }
 
   // add collection to event bus
+  //  recHitCollName_ == 'EcalRecHits'
   event.add(recHitCollName_, ecalRecHits);
+  if (store_intermediate_values_) {
+    // 'EcalRecHitsCharges'
+    event.add(recHitCollName_+"Charges", reconstructed_charges);
+  }
 }
 
 }  // namespace ecal
