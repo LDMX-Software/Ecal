@@ -25,12 +25,16 @@ class EcalHit : public ldmx::CalorimeterHit {
   virtual ~EcalHit() {}
 
   /** Clear the data in the object. */
-  void Clear();
+  void clear();
 
   /** Print a text representation of this object. */
   void Print() const;
 
  private:
+  friend class fire::io::access;
+  template<typename D> void attach(D& d) {
+    CalorimeterHit::attach(d);
+  }
   /** The ROOT class definition. */
   ClassDef(EcalHit, 3);
 };

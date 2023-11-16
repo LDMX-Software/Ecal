@@ -104,8 +104,15 @@ class EcalCluster {
   }
 
  private:
-  friend class fire::io::Data<EcalCluster>;
-  void attach(fire::io::Data<EcalCluster>& d);
+  friend class fire::io::access;
+  template<typename Data> void attach(Data& d) {
+    d.attach("hitIDs", hitIDs_);
+    d.attach("energy", energy_);
+    d.attach("nHits", nHits_);
+    d.attach("centroidX", centroidX_);
+    d.attach("centroidY", centroidY_);
+    d.attach("centroidZ", centroidZ_);
+  }
 
   std::vector<unsigned int> hitIDs_;
   double energy_{0};

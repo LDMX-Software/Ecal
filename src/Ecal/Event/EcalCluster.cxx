@@ -6,7 +6,7 @@ namespace ldmx {
 
 EcalCluster::EcalCluster() {}
 
-EcalCluster::~EcalCluster() { Clear(); }
+EcalCluster::~EcalCluster() { clear(); }
 
 void EcalCluster::Print() const {
   std::cout << "EcalCluster { "
@@ -20,7 +20,7 @@ void EcalCluster::Print() const {
   //}
 }
 
-void EcalCluster::Clear() {
+void EcalCluster::clear() {
   hitIDs_.clear();
 
   energy_ = 0;
@@ -46,12 +46,4 @@ void EcalCluster::addHits(const std::vector<const EcalHit *> hitsVec) {
   // setCentroidXYZ(centroidX, centroidY, 0);
 }
 
-void EcalCluster::attach(fire::io::Data<EcalCluster>& d) {
-  d.attach("hitIDs", hitIDs_);
-  d.attach("energy", energy_);
-  d.attach("nHits", nHits_);
-  d.attach("centroidX", centroidX_);
-  d.attach("centroidY", centroidY_);
-  d.attach("centroidZ", centroidZ_);
-}
 }  // namespace ldmx

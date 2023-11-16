@@ -6,7 +6,7 @@
 ClassImp(ldmx::EcalHit)
 
     namespace ldmx {
-  void EcalHit::Clear() { CalorimeterHit::Clear(); }
+  void EcalHit::clear() { CalorimeterHit::clear(); }
 
   void EcalHit::Print() const {
     std::cout << "EcalHit { "
