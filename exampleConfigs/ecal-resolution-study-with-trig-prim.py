@@ -35,7 +35,6 @@ p.maxEvents = arg.n_events
 p.maxTriesPerEvent = 10000
 file_stub = f'energy_{arg.energy}_theta_{arg.theta:02d}_phi_{arg.phi}_attarget_{arg.angle_at_target}_geometry_v14_events_{arg.n_events}_run_{arg.run}.root'
 p.outputFiles = [ arg.out_dir+'/type_events_'+file_stub ]
-p.histogramFile = arg.out_dir+'/type_histos_'+file_stub
 
 # we want to see every event
 p.logFrequency = 1000
@@ -52,11 +51,6 @@ import LDMX.Ecal.ecal_trig_digi as ecal_trig_digi
 electrons = generators.gun('ecal-electrons')
 electrons.particle = 'e-'
 electrons.energy = arg.energy
-# for now, we are just going to have phi=0 meaning all angular
-#  movement is put along the horizontal x-axis
-# this is a good first-pass study since the horizontal plane
-#  is where most particles are bent due to the magnetic field
-#  surrounding the tracker
 from math import sin, cos, tan, pi
 phi = arg.phi * pi/180
 theta = arg.theta * pi/180
